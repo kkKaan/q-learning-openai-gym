@@ -1,84 +1,96 @@
 import gym
 import numpy as np
 
-# create the MountainCar environment
-env = gym.make("CliffWalking-v0", render_mode="human")
+class QLearningAgent:
+    def __init__(self, env_name, num_episodes, max_steps_per_episode):
+        self.env = gym.make(env_name)
+        self.num_states = self.env.observation_space.n
+        self.num_actions = self.env.action_space.n
+        self.q_table = np.zeros((self.num_states, self.num_actions))
+        self.num_episodes = num_episodes
+        self.max_steps_per_episode = max_steps_per_episode
+        self.learning_rate = 0.1
+        self.discount_factor = 0.99
+        self.exploration_rate = 1.0
+        self.max_exploration_rate = 1.0
+        self.min_exploration_rate = 0.01
+        self.exploration_decay_rate = 0.01
 
-# initialize Q-table
-num_states = env.observation_space.n
-num_actions = env.action_space.n
-q_table = np.zeros((num_states, num_actions))
+    def choose_action(self, state):
+        exploration_rate_threshold = np.random.uniform(0, 1)
+        if exploration_rate_threshold > self.exploration_rate:
+            return np.argmax(self.q_table[state, :])
+        else:
+            return self.env.action_space.sample()
 
-# set hyperparameters
-num_episodes = 1000
-max_steps_per_episode = 30
-learning_rate = 0.1
-discount_factor = 0.99
-exploration_rate = 1.0
-max_exploration_rate = 1.0
-min_exploration_rate = 0.01
-exploration_decay_rate = 0.01
+    def train(self):
+        for episode in range(self.num_episodes):
+            state = self.env.reset()
+            state = state[0]
+            done = False
 
-# take input to check if the user wants to load the q table from a file
-load_q_table = input("Do you want to load the q table from a file? (y/n): ")
+            for step in range(self.max_steps_per_episode):
+                action = self.choose_action(state)
+                new_state, reward, done, _, _ = self.env.step(action)
+                self.q_table[state, action] = self.q_table[state, action] * (1 - self.learning_rate) + self.learning_rate * (
+                            reward + self.discount_factor * np.max(self.q_table[new_state, :]))
 
-if load_q_table == "n":
-    # Q-learning algorithm
-    for episode in range(num_episodes):
-        state = env.reset()
-        state = state[0]
-        done = False
+                state = new_state
 
-        for step in range(max_steps_per_episode):
-            # exploration-exploitation trade-off
-            exploration_rate_threshold = np.random.uniform(0, 1)
-            if exploration_rate_threshold > exploration_rate:
-                action = np.argmax(q_table[state, :])
-            else:
-                action = env.action_space.sample()
+                if done:
+                    break
 
-            # take action and observe new state and reward
-            new_state, reward, done, _, _ = env.step(action)
+            self.exploration_rate = max(self.min_exploration_rate, self.exploration_rate * np.exp(-self.exploration_decay_rate * episode))
 
-            # update Q-table
-            q_table[state, action] = q_table[state, action] * (1 - learning_rate) + learning_rate * (
-                        reward + discount_factor * np.max(q_table[new_state, :]))
+    def save_q_table(self, filename):
+        np.save(filename, self.q_table)
 
-            state = new_state
+    def load_q_table(self, filename):
+        self.q_table = np.load(filename)
 
-            if done:
-                break
+    def test(self, num_test_episodes):
+        total_rewards = []
 
-        # decay exploration rate
-        exploration_rate = min_exploration_rate + (max_exploration_rate - min_exploration_rate) * np.exp(-exploration_decay_rate * episode)
+        for episode in range(num_test_episodes):
+            state = self.env.reset()
+            state = state[0]
+            done = False
+            episode_reward = 0
 
-    # send the q table to a file
-    np.save("q_table.npy", q_table)
+            for step in range(self.max_steps_per_episode):
+                action = np.argmax(self.q_table[state, :])
+                new_state, reward, done, _, _ = self.env.step(action)
+                episode_reward += reward
+                state = new_state
 
-else:
-    # load the q table from a file
-    q_table = np.load("q_table.npy")
+                if done:
+                    break
 
-# evaluate the agent
-num_test_episodes = 10
-total_rewards = []
+            total_rewards.append(episode_reward)
 
-for episode in range(num_test_episodes):
-    state = env.reset()
-    state = state[0]
-    done = False
-    episode_reward = 0
+        self.env.close()
+        return total_rewards
 
-    for step in range(max_steps_per_episode):
-        action = np.argmax(q_table[state, :])
-        new_state, reward, done, _, _ = env.step(action)
-        episode_reward += reward
-        state = new_state
 
-        if done:
-            break
+def main():
+    env_name = "CliffWalking-v0"
+    num_episodes = 1000
+    max_steps_per_episode = 30
+    num_test_episodes = 10
 
-    total_rewards.append(episode_reward)
+    agent = QLearningAgent(env_name, num_episodes, max_steps_per_episode)
 
-# close the environment
-env.close()
+    load_q_table = input("Do you want to load the q table from a file? (y/n): ")
+
+    if load_q_table == "n":
+        agent.train()
+        agent.save_q_table("q_table.npy")
+    else:
+        agent.load_q_table("q_table.npy")
+
+    test_rewards = agent.test(num_test_episodes)
+    print("Average test reward:", np.mean(test_rewards))
+
+
+if __name__ == "__main__":
+    main()
