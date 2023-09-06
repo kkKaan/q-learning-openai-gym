@@ -32,15 +32,16 @@ class QLearningAgent:
             for step in range(self.max_steps_per_episode):
                 action = self.choose_action(state)
                 new_state, reward, done, _, _ = self.env.step(action)
-                self.q_table[state, action] = self.q_table[state, action] * (1 - self.learning_rate) + self.learning_rate * (
-                            reward + self.discount_factor * np.max(self.q_table[new_state, :]))
+                self.q_table[state, action] = self.q_table[state, action] * (1 - self.learning_rate) + self.learning_rate * ( \
+                                              reward + self.discount_factor * np.max(self.q_table[new_state, :]))
 
                 state = new_state
 
                 if done:
                     break
 
-            self.exploration_rate = max(self.min_exploration_rate, self.exploration_rate * np.exp(-self.exploration_decay_rate * episode))
+            self.exploration_rate = max(self.min_exploration_rate, self.exploration_rate * \
+                                    np.exp(-self.exploration_decay_rate * episode))
 
     def save_q_table(self, filename):
         np.save(filename, self.q_table)
