@@ -30,9 +30,3 @@ The agent is designed to:
 ## Testing
 - The agent's performance is evaluated over a number of test episodes.
 - Rewards per episode are recorded to gauge the effectiveness of the learned policy.
-
-## Contribution
-Feel free to fork this repository to extend the functionality or improve the Q-Learning agent's performance.
-
-## License
-This project is open-source and available under the MIT License.
